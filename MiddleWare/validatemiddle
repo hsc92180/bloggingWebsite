@@ -1,0 +1,50 @@
+const jwt = require("jsonwebtoken");
+const jwt_Secret_Key = "Random_blog_app";
+const passwordModel = require("../model/auth");
+
+// steps: 1 - token is present or not.
+//        2 - verify secret Key.
+//        3 - expiry date.
+//        4-userid is present in database or not.
+
+const validMiddleware = async (req, res, next) => {
+    //1
+    const headers = req.headers;
+    if (!headers.authorization) {
+       return res.status(401).json({
+            message:"Unauthorized user"
+        })
+    }
+    //2
+    try {
+        jwt.verify(headers.authorization, jwt_Secret_Key);
+    } catch (err) {
+        return res.json({
+            msg:"unauthorized user"
+        })
+    }
+    //3
+    const tokenData = jwt.decode(headers.authorization);
+    // console.log(tokenData);
+    const exp = tokenData.exp;
+    const now = Math.ceil(new Date().getTime() / 1_000);
+    if (now > exp) {
+        return res.json({
+            msg:"token expired"
+        })
+    }
+
+    //5
+    const userid = tokenData.userid;
+    const user = await passwordModel.findById(userid);
+
+    if (!user) {
+        return res.json({
+            msg:"user not found"
+        })
+    }
+
+    req.user = user;
+    next();
+}
+module.exports = validMiddleware;
